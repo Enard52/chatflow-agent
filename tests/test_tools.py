@@ -162,3 +162,39 @@ def test_variadic_only_tool_has_no_declared_arguments() -> None:
     schema = Tool(flexible).parameters_schema
     assert schema["properties"] == {}
     assert schema["required"] == []
+
+
+def test_tool_with_functools_partial() -> None:
+    from functools import partial
+
+    def base_fn(x: int, y: int = 10) -> int:
+        """Add two numbers."""
+        return x + y
+
+    p = partial(base_fn, 5)
+    tool = Tool(p)
+    assert tool.name == "base_fn"
+    assert tool.description == "Add two numbers."
+    schema = tool.parameters_schema
+    assert "y" in schema["properties"]
+    assert "x" not in schema["properties"]
+    assert tool(y=7) == 12
+
+
+
+def test_tool_with_callable_instance() -> None:
+    class Greeter:
+        """Callable greeter class."""
+        def __call__(self, name: str) -> str:
+            return f"Hello, {name}"
+
+    greeter = Greeter()
+    tool = Tool(greeter)
+    assert tool.name == "Greeter"
+    assert tool.description == "Callable greeter class."
+
+    # Custom override
+    tool_custom = Tool(greeter, name="custom_greet", description="Custom greeting")
+    assert tool_custom.name == "custom_greet"
+    assert tool_custom.description == "Custom greeting"
+

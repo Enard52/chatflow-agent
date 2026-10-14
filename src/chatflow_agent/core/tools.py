@@ -55,13 +55,29 @@ class Tool:
         description: str | None = None,
     ) -> None:
         self.func = func
-        self.name = name or func.__name__
+        self.name = name or self._resolve_name(func)
         self.description = (
-            description or (inspect.getdoc(func) or "").strip() or f"Execute {self.name}"
+            description or self._resolve_description(func) or f"Execute {self.name}"
         )
         self.signature = inspect.signature(func)
         self.is_async = inspect.iscoroutinefunction(func)
         self.parameters_schema = self._build_parameters_schema()
+
+    @staticmethod
+    def _resolve_name(func: Callable[..., Any]) -> str:
+        """Resolve a tool name from a callable, supporting partials and callable instances."""
+        if hasattr(func, "__name__"):
+            return func.__name__
+        if hasattr(func, "func") and hasattr(func.func, "__name__"):
+            return func.func.__name__
+        return type(func).__name__
+
+    @staticmethod
+    def _resolve_description(func: Callable[..., Any]) -> str:
+        """Extract docstring, falling back to underlying callable for functools.partial."""
+        target = getattr(func, "func", func)
+        doc = inspect.getdoc(target) or inspect.getdoc(func) or ""
+        return doc.strip()
 
     def _build_parameters_schema(self) -> dict[str, Any]:
         """Introspect function signature and generate schema for parameters."""
